@@ -32,7 +32,6 @@ import (
 	"github.com/PlakarKorp/plakar/appcontext"
 	"github.com/PlakarKorp/plakar/config"
 	"github.com/PlakarKorp/plakar/subcommands"
-	"github.com/PlakarKorp/plakar/utils"
 	"go.yaml.in/yaml/v3"
 	"gopkg.in/ini.v1"
 )
@@ -200,7 +199,7 @@ func dispatchSubcommand(ctx *appcontext.AppContext, cmd string, subcmd string, a
 			thirdParty = "rclone"
 		}
 
-		newConfMap, err := utils.GetConf(rd, thirdParty)
+		newConfMap, err := config.LoadFile(rd, thirdParty)
 		if err != nil {
 			return fmt.Errorf("failed to load config: %w", err)
 		}

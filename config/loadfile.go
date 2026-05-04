@@ -1,4 +1,4 @@
-package utils
+package config
 
 import (
 	"bytes"
@@ -12,8 +12,7 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-// toString converts various primitive types to string.
-func toString(v interface{}) string {
+func toString(v any) string {
 	switch t := v.(type) {
 	case string:
 		return t
@@ -24,7 +23,7 @@ func toString(v interface{}) string {
 	}
 }
 
-func LoadINI(rd io.Reader) (map[string]map[string]string, error) {
+func loadINI(rd io.Reader) (map[string]map[string]string, error) {
 	cfg, err := ini.Load(rd)
 	if err != nil {
 		return nil, err
@@ -46,8 +45,8 @@ func LoadINI(rd io.Reader) (map[string]map[string]string, error) {
 	return result, nil
 }
 
-func LoadYAML(rd io.Reader) (map[string]map[string]string, error) {
-	var raw map[string]interface{}
+func loadYAML(rd io.Reader) (map[string]map[string]string, error) {
+	var raw map[string]any
 	decoder := yaml.NewDecoder(rd)
 	if err := decoder.Decode(&raw); err != nil {
 		return nil, err
@@ -55,7 +54,7 @@ func LoadYAML(rd io.Reader) (map[string]map[string]string, error) {
 
 	result := make(map[string]map[string]string)
 	for section, value := range raw {
-		sectionMap, ok := value.(map[string]interface{})
+		sectionMap, ok := value.(map[string]any)
 		if !ok {
 			continue // skip non-object top-level keys
 		}
@@ -68,8 +67,7 @@ func LoadYAML(rd io.Reader) (map[string]map[string]string, error) {
 	return result, nil
 }
 
-// LoadJSON loads a JSON object and returns a nested map[string]map[string]string.
-func LoadJSON(rd io.Reader) (map[string]map[string]string, error) {
+func loadJSON(rd io.Reader) (map[string]map[string]string, error) {
 	var raw map[string]map[string]string
 	decoder := json.NewDecoder(rd)
 	if err := decoder.Decode(&raw); err != nil {
@@ -78,16 +76,19 @@ func LoadJSON(rd io.Reader) (map[string]map[string]string, error) {
 	return raw, nil
 }
 
-func GetConf(rd io.Reader, thirdParty string) (map[string]map[string]string, error) {
+// LoadFile attempts to load a file from the given reader, which could
+// be YAML, JSON or INI, and parse it into a nested map which can be used
+// then to fill one of the fields of Config.
+func LoadFile(rd io.Reader, thirdParty string) (map[string]map[string]string, error) {
 	data, err := io.ReadAll(rd)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config data: %w", err)
 	}
 
 	var configMap map[string]map[string]string
-	if configMap, err = LoadYAML(bytes.NewReader(data)); err == nil {
-	} else if configMap, err = LoadJSON(bytes.NewReader(data)); err == nil {
-	} else if configMap, err = LoadINI(bytes.NewReader(data)); err != nil {
+	if configMap, err = loadYAML(bytes.NewReader(data)); err == nil {
+	} else if configMap, err = loadJSON(bytes.NewReader(data)); err == nil {
+	} else if configMap, err = loadINI(bytes.NewReader(data)); err != nil {
 		return nil, fmt.Errorf("failed to parse config data: %w", err)
 	}
 
